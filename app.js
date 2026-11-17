@@ -46,12 +46,6 @@ const DEFAULT_EXERCISES = {
   swim: ['Swimming'],
   rope: ['Jump Rope'],
 };
-const DEFAULT_PROGRAMS = [
-  ['Push', ['Bench Press', 'Incline Dumbbell Press', 'Overhead Press', 'Lateral Raise', 'Triceps Pushdown']],
-  ['Pull', ['Pull-up', 'Barbell Row', 'Lat Pulldown', 'Face Pull', 'Biceps Curl']],
-  ['Chest + Back', ['Bench Press', 'Barbell Row', 'Incline Dumbbell Press', 'Lat Pulldown', 'Chest Fly', 'Seated Cable Row']],
-  ['Legs', ['Squat', 'Romanian Deadlift', 'Leg Press', 'Leg Curl', 'Calf Raise']],
-];
 const TYPE_LABEL = { strength: 'Strength', cardio: 'Cardio', swim: 'Swimming', rope: 'Jump rope' };
 const TYPES = ['strength', 'cardio', 'swim', 'rope'];
 /* Main choices in the Cardio / Movement menu */
@@ -67,8 +61,8 @@ function seed() {
   for (const [type, names] of Object.entries(DEFAULT_EXERCISES)) {
     for (const name of names) exercises.push({ id: slug(name), name, type });
   }
-  const programs = DEFAULT_PROGRAMS.map(([name, list]) => ({ id: slug(name), name, exerciseIds: list.map(slug) }));
-  return { version: 1, exercises, programs, workouts: [], active: null, settings: { rest: 90, hideInstall: false, m2: true } };
+  // New users start with no programs — they create their own with "+ Add program"
+  return { version: 1, exercises, programs: [], workouts: [], active: null, settings: { rest: 90, hideInstall: false, m2: true } };
 }
 
 /* ---------- storage ---------- */
@@ -477,6 +471,11 @@ function renderToday() {
           <span class="sub">${kinds.map((k) => `<span class="dot ${k}"></span>`).join('')}${p.exerciseIds.length} exercise${p.exerciseIds.length === 1 ? '' : 's'}</span>
         </button>`;
       }).join('')}
+      <button class="program-tile add-tile ${db.programs.length ? '' : 'first'}" data-act="new-program">
+        <span class="plus">＋</span>
+        <span class="name">Add program</span>
+        ${db.programs.length ? '' : '<span class="sub">Create your first workout program</span>'}
+      </button>
       <button class="program-tile cardio-tile" data-act="cardio-menu">
         <span class="name">Cardio / Movement</span>
         <span class="sub">🏃 🏊 🚶 🪢 &nbsp;Running · Swimming · Walking · Jump rope</span>
@@ -733,7 +732,8 @@ function renderPrograms() {
           <button class="btn btn-accent small" data-act="start" data-id="${p.id}">Start</button>
           <button class="btn small" data-act="edit-program" data-id="${p.id}">Edit</button>
         </div>
-      </div>`).join('')}
+      </div>`).join('') || `<div class="empty"><div class="big">📋</div>No programs yet.<br>
+      <button class="btn btn-accent" style="margin-top:14px" data-act="new-program">+ Add program</button></div>`}
 
     <div class="section-title">Account</div>
     <div class="card">
@@ -944,6 +944,15 @@ const actions = {
     pickExercise(ex.id);
   },
 
+  'resend-code': async () => {
+    try {
+      await Auth.resendCode(ui.authEmail);
+      ui.authMsg = { type: 'ok', text: `New code sent to ${ui.authEmail}.` };
+    } catch (e) {
+      ui.authMsg = { type: 'error', text: e.message };
+    }
+    render();
+  },
   'auth-mode': (d) => { ui.authMode = d.mode; ui.authMsg = null; render(); },
   'to-login': () => { localStorage.removeItem('fitlog.skipAuth'); db = null; ui.authMode = 'login'; ui.authMsg = null; render(); },
   'skip-auth': () => { localStorage.setItem('fitlog.skipAuth', '1'); startSession(); },
@@ -1093,6 +1102,20 @@ function renderAuth() {
     </div>`;
   }
 
+  if (m === 'verify') {
+    return `<div class="auth">${head}
+      <form class="card stack" id="auth-form">
+        <h3>Check your email</h3>
+        <p class="muted small" style="margin:0">We sent an email to <b>${esc(ui.authEmail)}</b>. Type the code from it here — or, if the email has a link instead, open the link. Can't find it? Look in spam.</p>
+        <input class="text-input code-input" id="auth-code" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" maxlength="10" required>
+        ${msg}
+        <button class="btn btn-accent wide" type="submit">Confirm</button>
+      </form>
+      <button class="link-btn" data-act="resend-code">Send a new code</button>
+      <button class="link-btn" data-act="auth-mode" data-mode="login">← Back to log in</button>
+    </div>`;
+  }
+
   if (m === 'newpass') {
     return `<div class="auth">${head}
       <form class="card stack" id="auth-form">
@@ -1141,16 +1164,37 @@ async function handleAuthSubmit(form) {
   btn.textContent = 'Please wait…';
   try {
     if (ui.authMode === 'login') {
-      await Auth.signIn(email, pass);
+      try {
+        await Auth.signIn(email, pass);
+      } catch (e) {
+        if (!e.unconfirmed) throw e;
+        // account exists but was never confirmed → send a fresh code and ask for it
+        ui.authEmail = email;
+        ui.authMode = 'verify';
+        try { await Auth.resendCode(email); } catch (e2) { /* code from before may still work */ }
+        ui.authMsg = { type: 'ok', text: 'Your email is not confirmed yet. We sent you a new code.' };
+        render();
+        return;
+      }
       ui.authMsg = null;
       startSession();
       toast('Welcome back 👋');
     } else if (ui.authMode === 'signup') {
       const r = await Auth.signUp(email, pass);
       if (r.loggedIn) { ui.authMsg = null; startSession(); toast('Account created 🎉'); return; }
-      ui.authMode = 'login';
-      ui.authMsg = { type: 'ok', text: `Almost done! We sent a confirmation link to ${email}. Open it on this phone and you'll be logged in.` };
+      ui.authEmail = email;
+      ui.authMode = 'verify';
+      ui.authMsg = null;
       render();
+      setTimeout(() => { const c = $('#auth-code'); if (c) c.focus(); }, 50);
+    } else if (ui.authMode === 'verify') {
+      const code = val('#auth-code').replace(/\D/g, '');
+      if (code.length < 6) return fail('Type the code from the email.');
+      await Auth.verifyCode(ui.authEmail, code);
+      ui.authMsg = null;
+      ui.authMode = 'login';
+      startSession();
+      toast('Account created 🎉');
     } else if (ui.authMode === 'forgot') {
       await Auth.recover(email);
       ui.authMsg = { type: 'ok', text: `If ${email} has an account, a reset link is on its way. Check your inbox (and spam).` };

@@ -36,6 +36,7 @@ const Auth = (() => {
     'User already registered': 'This email already has an account — log in instead.',
     'Email not confirmed': 'Please confirm your email first — check your inbox (and spam).',
     'Password should be at least 6 characters.': 'Password must be at least 6 characters.',
+    'Token has expired or is invalid': 'That code is wrong or has expired. Check it or send a new one.',
   };
   function friendly(data, status) {
     const msg = (data && (data.error_description || data.msg || data.message || data.error)) || `Something went wrong (${status}).`;
@@ -67,6 +68,8 @@ const Auth = (() => {
     if (!res.ok) {
       const err = new Error(friendly(data, res.status));
       err.status = res.status;
+      const raw = data && (data.error_code || data.msg || data.error_description || data.message || '');
+      err.unconfirmed = raw === 'email_not_confirmed' || raw === 'Email not confirmed';
       throw err;
     }
     return data;
@@ -105,6 +108,18 @@ const Auth = (() => {
     async signIn(email, password) {
       const d = await call('/auth/v1/token?grant_type=password', { body: { email, password } });
       store(fromToken(d));
+    },
+
+    /** Confirms a new account with the code from the email and logs in. */
+    async verifyCode(email, code) {
+      const d = await call('/auth/v1/verify', { body: { type: 'email', email, token: code } });
+      if (!d || !d.access_token) throw new Error('That code is wrong or has expired. Check it or send a new one.');
+      store(fromToken(d));
+    },
+
+    /** Sends the confirmation code again. */
+    async resendCode(email) {
+      await call('/auth/v1/resend', { body: { type: 'signup', email } });
     },
 
     async signOut() {

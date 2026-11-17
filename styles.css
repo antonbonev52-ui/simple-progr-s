@@ -261,6 +261,9 @@ h3 { font-size: 17px; font-weight: 700; }
 .ex-card.rope { border-left-color: var(--rope); }
 .cardio-tile { grid-column: 1 / -1; min-height: 80px; background: linear-gradient(135deg, #10283a, #181a20 70%); }
 .cardio-tile .sub { margin-top: 8px; }
+.add-tile { background: transparent; border: 1.5px dashed var(--line); justify-content: center; align-items: center; text-align: center; gap: 2px; }
+.add-tile .plus { font-size: 26px; line-height: 1; color: var(--accent); font-weight: 800; }
+.add-tile.first { grid-column: 1 / -1; border-color: var(--accent); }
 .activity-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .activity {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px; text-align: left;
@@ -288,3 +291,4 @@ body.auth-screen .view { padding-bottom: calc(var(--safe-b) + 40px); }
 .auth-msg.ok { background: rgba(61, 220, 132, 0.12); color: #7deaa9; }
 .link-btn { display: block; margin: 16px auto 0; color: var(--accent); font-weight: 700; font-size: 15px; padding: 8px; }
 button[disabled] { opacity: 0.6; }
+.code-input { text-align: center; font-size: 26px; font-weight: 800; letter-spacing: 8px; }
