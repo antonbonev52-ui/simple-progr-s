@@ -2,7 +2,7 @@
    Strategy: try the network first (so you always get your newest code),
    fall back to the saved copy when offline.
    Change CACHE when you release a new version. */
-const CACHE = 'fitlog-v5';
+const CACHE = 'fitlog-v6';
 const ASSETS = [
   './', './index.html', './privacy.html', './styles.css', './app.js', './auth.js', './config.js', './manifest.json',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png',

@@ -292,3 +292,14 @@ body.auth-screen .view { padding-bottom: calc(var(--safe-b) + 40px); }
 .link-btn { display: block; margin: 16px auto 0; color: var(--accent); font-weight: 700; font-size: 15px; padding: 8px; }
 button[disabled] { opacity: 0.6; }
 .code-input { text-align: center; font-size: 26px; font-weight: 800; letter-spacing: 8px; }
+.sheet-head h2 { flex: 1; margin: 0; }
+.sheet-head .icon-btn:first-child + h2 { margin-left: 4px; }
+.template-card {
+  display: block; width: 100%; text-align: left; background: var(--card-2); border-radius: var(--radius);
+  padding: 14px; margin-bottom: 10px; border: 1.5px solid transparent;
+}
+.template-card:active { border-color: var(--accent); }
+.template-card .name { font-weight: 800; font-size: 17px; }
+.template-card .tag { color: var(--accent); font-weight: 700; font-size: 14px; }
+.template-card .desc { margin-top: 6px; color: var(--text); }
+.template-card .ex { margin-top: 6px; color: var(--muted); }

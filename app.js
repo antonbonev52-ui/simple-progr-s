@@ -46,6 +46,20 @@ const DEFAULT_EXERCISES = {
   swim: ['Swimming'],
   rope: ['Jump Rope'],
 };
+/* Ready-made programs offered under "Add program" (4 exercises each).
+   Built around the main compound lifts; the user can edit them before saving. */
+const PROGRAM_TEMPLATES = [
+  { name: 'Full Body', tag: 'Beginner · 2–3× a week', desc: 'Whole body in one session — the best start for beginners.',
+    exercises: ['Squat', 'Bench Press', 'Barbell Row', 'Overhead Press'] },
+  { name: 'Push', tag: 'Chest · Shoulders · Triceps', desc: 'Pushing day of a Push / Pull / Legs split.',
+    exercises: ['Bench Press', 'Overhead Press', 'Incline Dumbbell Press', 'Triceps Pushdown'] },
+  { name: 'Pull', tag: 'Back · Biceps', desc: 'Pulling day of a Push / Pull / Legs split.',
+    exercises: ['Lat Pulldown', 'Barbell Row', 'Face Pull', 'Biceps Curl'] },
+  { name: 'Legs', tag: 'Quads · Hamstrings · Glutes · Calves', desc: 'Leg day — pairs with Push / Pull or with Upper Body.',
+    exercises: ['Squat', 'Romanian Deadlift', 'Leg Press', 'Calf Raise'] },
+  { name: 'Upper Body', tag: 'Chest · Back · Shoulders', desc: 'Upper day of an Upper / Lower split (use Legs as the lower day).',
+    exercises: ['Bench Press', 'Lat Pulldown', 'Overhead Press', 'Seated Cable Row'] },
+];
 const TYPE_LABEL = { strength: 'Strength', cardio: 'Cardio', swim: 'Swimming', rope: 'Jump rope' };
 const TYPES = ['strength', 'cardio', 'swim', 'rope'];
 /* Main choices in the Cardio / Movement menu */
@@ -829,10 +843,30 @@ function pickExercise(id) {
   }
 }
 
+/** "Add program": pick a ready-made program or start from scratch. */
+function openTemplates() {
+  ui.editing = null;
+  openModal(`
+    <div class="sheet-head"><h2>Add program</h2><button class="icon-btn" data-act="editor-close">✕</button></div>
+    <button class="btn btn-accent wide" data-act="create-program">＋ Create your own program</button>
+    <div class="section-title">Or start from a ready-made one</div>
+    <p class="muted small" style="margin:-4px 0 12px">You can add, remove and reorder exercises before saving.</p>
+    ${PROGRAM_TEMPLATES.map((t, i) => `
+      <button class="template-card" data-act="use-template" data-i="${i}">
+        <div class="row between"><span class="name">${esc(t.name)}</span><span class="tag">Use ›</span></div>
+        <div class="small muted">${esc(t.tag)}</div>
+        <div class="desc small">${esc(t.desc)}</div>
+        <div class="ex small">${t.exercises.map(esc).join(' · ')}</div>
+      </button>`).join('')}
+  `);
+}
+
 function openEditor() {
   const p = ui.editing;
   openModal(`
-    <div class="sheet-head"><h2>${p.id ? 'Edit program' : 'New program'}</h2><button class="icon-btn" data-act="editor-close">✕</button></div>
+    <div class="sheet-head">
+      ${!p.id ? '<button class="icon-btn" data-act="to-templates" aria-label="Back">‹</button>' : ''}
+      <h2>${p.id ? 'Edit program' : 'New program'}</h2><button class="icon-btn" data-act="editor-close">✕</button></div>
     <input class="text-input" id="prog-name" placeholder="Program name (e.g. Push)" value="${esc(p.name)}">
     <div class="section-title">Exercises</div>
     ${p.exerciseIds.length ? p.exerciseIds.map((id, i) => `
@@ -906,7 +940,15 @@ const actions = {
     save(); render(); toast('Workout deleted');
   },
 
-  'new-program': () => { ui.editing = { id: null, name: '', exerciseIds: [] }; openEditor(); },
+  'new-program': () => openTemplates(),
+  'create-program': () => { ui.editing = { id: null, name: '', exerciseIds: [] }; openEditor(); },
+  'use-template': (d) => {
+    const t = PROGRAM_TEMPLATES[+d.i];
+    const ids = t.exercises.map((n) => (db.exercises.find((e) => e.name === n) || { id: slug(n) }).id);
+    ui.editing = { id: null, name: t.name, exerciseIds: ids };
+    openEditor();
+  },
+  'to-templates': () => openTemplates(),
   'edit-program': (d) => { const p = progById(d.id); ui.editing = { id: p.id, name: p.name, exerciseIds: [...p.exerciseIds] }; openEditor(); },
   'editor-close': () => { ui.editing = null; closeModal(); },
   'ed-add': () => { ui.editing.name = $('#prog-name').value; openPicker('editor'); },
